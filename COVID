@@ -1,0 +1,209 @@
+-- DATA EXPLORATION 
+-- Data source: https://ourworldindata.org/covid-deaths
+-- Data visualization: https://public.tableau.com/views/COVID_16363850925930/Dashboard1?:language=en-US&:display_count=n&:origin=viz_share_link
+
+
+-- looking at total cases vs. total deaths
+		SELECT location, 
+						date,
+						total_cases,
+						total_deaths,
+						round((total_deaths / total_cases)*100,2) AS death_percentage
+
+		FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+		WHERE location LIKE "Indo%"
+		Order by location,date
+
+-- finding out when was the highest death percentage by country
+		SELECT CovidDeaths.location,
+						MAX(CovidDeaths.date) AS latest_date,
+						maxdeath.max_death_percentage
+
+		FROM (SELECT location, 
+						date,
+						total_cases,
+						total_deaths,
+						round((total_deaths / total_cases)*100,2) AS death_percentage
+
+						FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+						) AS CovidDeaths
+
+		JOIN (SELECT location, 
+					 MAX(round((total_deaths / total_cases)*100,2)) AS max_death_percentage
+					 FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+					 GROUP BY location 
+					 ) AS maxdeath   ## table 2 to find the max death percentage by country
+
+						ON CovidDeaths.location = maxdeath.location AND CovidDeaths.death_percentage = maxdeath.max_death_percentage 
+
+		GROUP BY CovidDeaths.location, maxdeath.max_death_percentage
+
+
+
+-- looking at total case vs population
+		SELECT location, 
+						date,
+						total_cases,
+						population,
+						round((total_cases / population)*100,2) AS case_percentage
+
+		FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+		WHERE location LIKE "Indo%"
+		ORDER BY location,date
+
+
+		-- looking at countries with highest infection rate compared to population
+		SELECT location, 
+						Max(total_cases) AS max_cases,
+						population,
+						MAX(round((total_cases / population)*100,2)) AS max_case_percentage
+
+		FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+
+		GROUP BY location, population
+		ORDER BY max_case_percentage DESC
+
+
+-- showing countries with highest death count per population
+SELECT location,
+        continent,
+        MAX(total_deaths) AS total_death_count
+
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+WHERE continent IS NOT NULL
+GROUP BY location, continent
+-- HAVING location <> "World" 
+ORDER BY total_death_count DESC
+
+
+
+-- summary per continents
+SELECT location,
+        population,
+        MAX(total_cases) AS total_cases,
+        ROUND(((MAX(total_cases)/ population) * 100), 2) AS infection_rate,
+        MAX(total_deaths) AS total_death_count,
+        ROUND(( (MAX(total_deaths) / MAX(total_cases)) * 100), 2) AS death_rate
+
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+WHERE continent IS NULL
+GROUP BY location, population
+HAVING location != "Upper middle income" AND location != "High income" AND location != "Lower middle income" 
+        AND location != "Low income" AND location != "International"
+ORDER BY total_death_count DESC
+
+-- summary per income group 
+SELECT location,
+        population,
+        MAX(total_cases) AS total_cases,
+        ROUND(((MAX(total_cases)/ population) * 100), 2) AS infection_rate,
+        MAX(total_deaths) AS total_death_count,
+        ROUND(( (MAX(total_deaths) / MAX(total_cases)) * 100), 2) AS death_rate
+
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+WHERE continent IS NULL
+GROUP BY location, population
+HAVING location LIKE "%income"
+ORDER BY total_death_count DESC
+
+
+-- daily new cases and daily death rate
+SELECT date,
+        SUM(new_cases) AS daily_new_cases,
+        SUM(new_deaths) AS daily_new_deaths,
+        ROUND( (SUM(new_deaths) / SUM(new_cases) * 100) , 2) AS daily_death_rate
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths`
+WHERE continent IS NOT NULL
+GROUP BY date
+ORDER BY date 
+
+
+--
+--
+
+
+-- looking at total population vs vaccinations
+SELECT dea.continent,
+        dea.location,
+        dea.date,
+        dea.population,
+        vac.new_vaccinations
+        
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
+JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
+        ON dea.location = vac.location AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2,3
+
+
+-- counting accumulative vaccine per day
+SELECT dea.continent,
+        dea.location,
+        dea.date,
+        dea.population,
+        vac.new_vaccinations,
+        SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
+
+FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
+JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
+        ON dea.location = vac.location AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+ORDER BY 2,3
+
+
+--
+-- TEMP TABLE
+--
+-- using CTE (common table expression) - temporary table
+WITH PopvsVac AS (
+        SELECT dea.continent,
+        dea.location,
+        dea.date,
+        dea.population,
+        vac.new_vaccinations,
+        SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
+        
+        FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
+        JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
+                ON dea.location = vac.location AND dea.date = vac.date
+        WHERE dea.continent IS NOT NULL
+)
+
+SELECT *,
+        ROUND( (rolling_people_vaccinated / population) * 100, 2) AS rolling_vaccinated_rate
+FROM PopvsVac
+
+
+-- create table
+DROP TABLE IF EXISTS `bigquery-kaggle-327512.Covid.PercentPopulationVaccinated`
+
+CREATE TABLE IF NOT EXISTS `bigquery-kaggle-327512.Covid.PercentPopulationVaccinated` AS (
+        SELECT dea.continent,
+        dea.location,
+        dea.date,
+        dea.population,
+        vac.new_vaccinations,
+        SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
+        
+        FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
+        JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
+                ON dea.location = vac.location AND dea.date = vac.date
+        WHERE dea.continent IS NOT NULL
+        )
+
+
+-- creating view to store data for later visualizations
+CREATE VIEW `bigquery-kaggle-327512.Covid.PercentPopulationVaccinated` AS(
+        SELECT dea.continent,
+        dea.location,
+        dea.date,
+        dea.population,
+        vac.new_vaccinations,
+        SUM(vac.new_vaccinations) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
+        
+        FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
+        JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
+                ON dea.location = vac.location AND dea.date = vac.date
+        WHERE dea.continent IS NOT NULL
+        )
+
