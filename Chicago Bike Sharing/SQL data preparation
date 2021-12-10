@@ -1,0 +1,123 @@
+Data is sourced from first party (https://divvy-tripdata.s3.amazonaws.com/index.html). 
+Data is public and has been made available by Motivate International Inc. under this license (https://www.divvybikes.com/data-license-agreement).
+Data taken is for period Nov 2020 - Oct 2021. 
+
+
+1.  Data Preparation
+     •	The data owner changed its structure for data collected < Dec2020, thus cannot be directly combined with the newer data. 
+        These dataset will need additional processing. 
+     •	There are some NULL data but the majority of data seemed complete and consistent thus the dataset deemed acceptable. 
+     •	Initial glance of the data seemed to favour casual riders, i.e. casual riders seemed to rent the bicycle for much longer than annual members. 
+
+2. Preparing Nov 2020 data
+
+    a)  Combine monthly data to 1 table using UNION ALL.
+        Save the result as new table tripdata2020_12_2021_10.
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_10`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_09`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_08`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_07`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_06`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_05`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_04`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_03`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_02`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_09`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12`  
+      
+      
+   b)  use table in a) to extract the new station id --> save the result as new table station_name
+       # step a) is necessary in order to have cemplete station list. 
+       
+          SELECT DISTINCT start_station_name, 
+                          start_station_id,
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10`
+
+    
+   c) CAST the start_station_id and end_station_id from integer to string --> save the result as new table tripdata2020_11string
+          SELECT *,
+          CAST(start_station_id AS STRING) AS start_station_id_1,  # cannot override the original table, that’s why its given different name
+                      CAST(end_station_id AS STRING) AS end_station_id_1
+              FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11` 
+              WHERE ride_id IS NOT NULL AND 
+                  rideable_type IS NOT NULL AND 
+                  started_at IS NOT NULL AND 
+                  ended_at IS NOT NULL AND
+                  start_station_name IS NOT NULL AND
+                  start_station_id IS NOT NULL AND
+                  end_station_name IS NOT NULL AND
+                  end_station_id IS NOT NULL AND
+                  start_lat IS NOT NULL AND
+                  start_lng IS NOT NULL AND
+                  end_lat IS NOT NULL AND
+                  end_lng IS NOT NULL AND 
+                  member_casual IS NOT NULL
+
+
+   d) Then UPDATE the new string column with the new id convention. 
+          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
+
+          SET NOV20.end_station_id_1 = name.start_station_id
+
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
+
+          WHERE NOV20.end_station_name = name.start_station_name
+
+          AND
+          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
+
+          SET NOV20.start_station_id_1 = name.start_station_id
+
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
+
+          WHERE NOV20.start_station_name = name.start_station_name
+
+
+   e) Remove the old station id columns --> save the result as new table tripdata2020_11clean
+          SELECT		 ride_id, 
+                          rideable_type , 
+                          member_casual ,              
+                          started_at, 
+                          ended_at,
+                          start_station_name ,
+                          start_station_id_1 AS start_station_id ,
+                          end_station_name ,
+                          end_station_id_1 AS start_station_id ,
+                          start_lat,
+                          start_lng,
+                          end_lat,
+
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` 
+          
+  
+3. Now we can combine Nov 2020 data with the others. 
+   Save the result as new table tripdata2020_11_2021_10_clean
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11clean`  
+          
+          
+4. The rest of the project is done in RStudio. 
