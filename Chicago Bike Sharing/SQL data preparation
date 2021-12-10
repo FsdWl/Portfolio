@@ -120,4 +120,4 @@ Data taken is for period Nov 2020 - Oct 2021.
           FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11clean`  
           
           
-4. The rest of the project is done in RStudio. 
+4. Export the table and the rest of the project is done in RStudio. 
