@@ -1,18 +1,20 @@
+/* 
 Data is sourced from first party (https://divvy-tripdata.s3.amazonaws.com/index.html). 
 Data is public and has been made available by Motivate International Inc. under this license (https://www.divvybikes.com/data-license-agreement).
 Data taken is for period Nov 2020 - Oct 2021. 
+*/
 
-
+/*
 1.  Data Preparation
      •	The data owner changed its structure for data collected < Dec2020, thus cannot be directly combined with the newer data. 
-        These dataset will need additional processing. 
+          These dataset will need additional processing. 
      •	There are some NULL data but the majority of data seemed complete and consistent thus the dataset deemed acceptable. 
      •	Initial glance of the data seemed to favour casual riders, i.e. casual riders seemed to rent the bicycle for much longer than annual members. 
+*/
 
-2. Preparing Nov 2020 data
 
-    a)  Combine monthly data to 1 table using UNION ALL.
-        Save the result as new table tripdata2020_12_2021_10.
+#2. Combine monthly data from Dec 2020 to Oct 2021 to 1 table using UNION ALL.
+#   Save the result as new table tripdata2020_12_2021_10.
           SELECT  *
           FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_10`
           UNION ALL
@@ -44,120 +46,46 @@ Data taken is for period Nov 2020 - Oct 2021.
           FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_09`
           UNION ALL
           SELECT  *
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12`  
-      
-      
-   b)  use table in a) to extract the new station id --> save the result as new table station_name
-       # step a) is necessary in order to have cemplete station list. 
-       
-          SELECT DISTINCT start_station_name, 
-                          start_station_id,
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10`
-
-    
-   c) CAST the start_station_id and end_station_id from integer to string --> save the result as new table tripdata2020_11string
-          SELECT *,
-          CAST(start_station_id AS STRING) AS start_station_id_1,  # cannot override the original table, that’s why its given different name
-                      CAST(end_station_id AS STRING) AS end_station_id_1
-              FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11` 
-              WHERE ride_id IS NOT NULL AND 
-                  rideable_type IS NOT NULL AND 
-                  started_at IS NOT NULL AND 
-                  ended_at IS NOT NULL AND
-                  start_station_name IS NOT NULL AND
-                  start_station_id IS NOT NULL AND
-                  end_station_name IS NOT NULL AND
-                  end_station_id IS NOT NULL AND
-                  start_lat IS NOT NULL AND
-                  start_lng IS NOT NULL AND
-                  end_lat IS NOT NULL AND
-                  end_lng IS NOT NULL AND 
-                  member_casual IS NOT NULL
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12`;  
 
 
-   d) Then UPDATE the new string column with the new id convention. 
-          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
-
-          SET NOV20.end_station_id_1 = name.start_station_id
-
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
-
-          WHERE NOV20.end_station_name = name.start_station_name
-
-          AND
-          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
-
-          SET NOV20.start_station_id_1 = name.start_station_id
-
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
-
-          WHERE NOV20.start_station_name = name.start_station_name
-
-
-   e) Remove the old station id columns --> save the result as new table tripdata2020_11clean
-          SELECT		 ride_id, 
-                          rideable_type , 
-                          member_casual ,              
-                          started_at, 
-                          ended_at,
-                          start_station_name ,
-                          start_station_id_1 AS start_station_id ,
-                          end_station_name ,
-                          end_station_id_1 AS start_station_id ,
-                          start_lat,
-                          start_lng,
-                          end_lat,
-
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` 
-          
-  
-3. Now we can combine Nov 2020 data with the others. 
-   Save the result as new table tripdata2020_11_2021_10_clean
-          SELECT  *
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10`
-          UNION ALL
-          SELECT  *
-          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11clean`  
-          
-          
-4.	Preliminary investigation:
-     i.	Ride_length returned negatives number. 
-          Using this query, I found there are 358 rows with negative ride_length
+#3.	Preliminary investigation:
+#     i. Ride_length returned negative and 0 number. 
+#        Using this query, I found there are ~3,6000 rows with negative and 0 ride_length
 
                SELECT COUNT (*)
                FROM (
-               SELECT  *, 
-                               DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length
+                        SELECT  *, 
+                                DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length
 
-                       FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11_2021_10` 
-                       WHERE ride_id IS NOT NULL AND 
-                               rideable_type IS NOT NULL AND 
-                               started_at IS NOT NULL AND 
-                               ended_at IS NOT NULL AND
-                                         start_station_name IS NOT NULL AND
-                start_station_id IS NOT NULL AND
-                               end_station_name IS NOT NULL AND
-                               end_station_id IS NOT NULL AND
-                               start_lat IS NOT NULL AND
-                               start_lng IS NOT NULL AND
-                               end_lat IS NOT NULL AND
-                               end_lng IS NOT NULL AND 
-                               member_casual IS NOT NULL AND 
-                               DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) > 0
-                         )
-               WHERE ride_length < 0
-
+                                FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10` 
+                                WHERE ride_id IS NOT NULL AND 
+                                        rideable_type IS NOT NULL AND 
+                                        started_at IS NOT NULL AND 
+                                        ended_at IS NOT NULL AND
+                                        start_station_name IS NOT NULL AND
+                                        start_station_id IS NOT NULL AND
+                                        end_station_name IS NOT NULL AND
+                                        end_station_id IS NOT NULL AND
+                                        start_lat IS NOT NULL AND
+                                        start_lng IS NOT NULL AND
+                                        end_lat IS NOT NULL AND
+                                        end_lng IS NOT NULL AND 
+                                        member_casual IS NOT NULL
+                    )
+               WHERE DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) <= 0 ;
 
 
-     ii.	There are ~ >1200 entry with ride_length > 24 hours (1,440 minutes). Most of which came from casual customer. 
-          In fact member customer only logged maximum 1500 hours. 
+
+#     ii. There are ~ >1200 entry with ride_length > 24 hours (1,440 minutes). Most of which came from casual customer. 
+#         In fact member customer only logged maximum 1500 hours. 
+#         Also taking out all rows with start or end station at 'base'  --> since this means the bikes were in service
 
                SELECT * 
                FROM (
                        SELECT  ride_id, 
                                rideable_type , 
                                member_casual ,              
-                               FORMAT_DATE('%A', started_at) AS day_of_week, 
                                started_at, 
                                ended_at,
                                DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length,
@@ -170,7 +98,7 @@ Data taken is for period Nov 2020 - Oct 2021.
                                end_lat,
                                end_lng
 
-                       FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11_2021_10` 
+                       FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10` 
 
                        WHERE ride_id IS NOT NULL AND 
                                rideable_type IS NOT NULL AND 
@@ -189,35 +117,19 @@ Data taken is for period Nov 2020 - Oct 2021.
                                end_station_name <> "Base - 2132 W Hubbard Warehouse" AND
                                start_station_name <> "Base - 2132 W Hubbard Warehouse"
                )
-
-
                WHERE member_casual = "member"
-               ORDER BY ride_length DESC limit 10
+               ORDER BY ride_length DESC limit 10 ;
 
 
-5.	Since the negatives result are small compared to the sample size, we exclude the negatives ride_length data from the dataset. 
-     Also to exclude all ride_length > 24 hours (1,440 minutes). 
+#4.	Since the negative and 0 results are relatively small compared to the sample size, we exclude these ride_length data from the dataset. 
+#   Also to exclude all ride_length > 24 hours (1,440 minutes). 
+#     Note: From Divvy bikes website, for annual pass member, max free usage is 45minutes, and day pass allowed up to 3 hours free usage. Afterwards $0.15 / min. 
+#           So it is unlikely someone will continuously using the bike for more than 24 hours.
 
-     Note: From Divvy bikes website, for annual pass member, max free usage is 45minutes, and day pass allowed up to 3 hours free usage. Afterwards $0.15 / min. 
-           So it is unlikely someone will continuously using the bike for more than 24 hours.
-
-             SELECT  ride_id, 
-                     rideable_type , 
-                     member_casual ,              
-                     FORMAT_DATE('%A', started_at) AS day_of_week, 
-                     started_at, 
-                     ended_at,
-                     DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length,
-                     start_station_name ,
-                     start_station_id ,
-                     end_station_name ,
-                     end_station_id ,
-                     start_lat,
-                     start_lng,
-                     end_lat,
-                     end_lng
-
-             FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11_2021_10` 
+             SELECT  *, 
+                    DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length
+                     
+             FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10` 
 
              WHERE ride_id IS NOT NULL AND 
                      rideable_type IS NOT NULL AND 
@@ -237,21 +149,21 @@ Data taken is for period Nov 2020 - Oct 2021.
                      end_station_name <> "Base - 2132 W Hubbard Warehouse" AND
                      start_station_name <> "Base - 2132 W Hubbard Warehouse"
 
-             ORDER BY ride_length DESC
+             ORDER BY ride_length DESC ;
 
 
 
-6.	Add new column day_of_week
-     •	Create a column called “day_of_week,” and calculate the day of the week that each ride started using the “WEEKDAY” command (for example, =WEEKDAY(C2,1)) in each file. 
-          Format as General or as a number with no decimals, noting that 1 = Sunday and 7 = Saturday. 
+# 6. Add new column day_of_week
+#    Create a column called “day_of_week,” and calculate the day of the week that each ride started using the “WEEKDAY” command (for example, =WEEKDAY(C2,1)) in each file. 
+#    Format as General or as a number with no decimals, noting that 1 = Sunday and 7 = Saturday. 
 
-          Using SQL BIGQUERY
+          #Using SQL BIGQUERY
                   SELECT  *, 
                           DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length,
                           FORMAT_DATE('%A', started_at) AS day_of_week  
                                         # see bigquery reference guide for other format like ‘%A’
 
-                  FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11_2021_10` 
+                  FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10` 
                   WHERE ride_id IS NOT NULL AND 
                           rideable_type IS NOT NULL AND 
                           started_at IS NOT NULL AND 
@@ -268,10 +180,11 @@ Data taken is for period Nov 2020 - Oct 2021.
                           DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) > 0 AND 
                           DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) < 1440 AND 
                           end_station_name <> "Base - 2132 W Hubbard Warehouse" AND
-                          start_station_name <> "Base - 2132 W Hubbard Warehouse"
+                          start_station_name <> "Base - 2132 W Hubbard Warehouse" ;
 
-7.	 Rearranging the table by specifying the order in SELECT  function
-        
+
+#7.	 Rearranging the table by specifying the order in SELECT  function
+        --> save the result as new table tripdata2020_12_2021_10_clean
                   SELECT  ride_id, 
                           rideable_type , 
                           member_casual ,              
@@ -288,7 +201,7 @@ Data taken is for period Nov 2020 - Oct 2021.
                           end_lat,
                           end_lng
 
-                  FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11_2021_10` 
+                  FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10` 
 
                   WHERE ride_id IS NOT NULL AND 
                           rideable_type IS NOT NULL AND 
@@ -306,8 +219,111 @@ Data taken is for period Nov 2020 - Oct 2021.
                           DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) > 0 AND 
                           DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) < 1440 AND 
                           end_station_name <> "Base - 2132 W Hubbard Warehouse" AND
-                          start_station_name <> "Base - 2132 W Hubbard Warehouse"
-        
+                          start_station_name <> "Base - 2132 W Hubbard Warehouse" ;
 
-8.	Export and further process in R
+
+
+#8. Preparing Nov 2020 data
+#   a)  use table in 7 above to extract the new station id --> save the result as new table station_name
+       # This is necessary in order to have complete station list. 
+       
+          SELECT DISTINCT start_station_name, 
+                          start_station_id,
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10`;
+
+    
+ #  b) CAST the start_station_id and end_station_id from integer to string --> save the result as new table tripdata2020_11string
+ 
+          SELECT *,
+          CAST(start_station_id AS STRING) AS start_station_id_1,  # cannot override the original table, that’s why its given different name
+          CAST(end_station_id AS STRING) AS end_station_id_1
+              FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11` 
+              WHERE ride_id IS NOT NULL AND 
+                  rideable_type IS NOT NULL AND 
+                  started_at IS NOT NULL AND 
+                  ended_at IS NOT NULL AND
+                  start_station_name IS NOT NULL AND
+                  start_station_id IS NOT NULL AND
+                  end_station_name IS NOT NULL AND
+                  end_station_id IS NOT NULL AND
+                  start_lat IS NOT NULL AND
+                  start_lng IS NOT NULL AND
+                  end_lat IS NOT NULL AND
+                  end_lng IS NOT NULL AND 
+                  member_casual IS NOT NULL;
+
+
+#   c) Then UPDATE the new string column with the new id convention. 
+
+          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
+
+          SET NOV20.end_station_id_1 = name.start_station_id
+
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
+
+          WHERE NOV20.end_station_name = name.start_station_name;
+          
+          #AND
+          
+          UPDATE `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string` AS NOV20
+
+          SET NOV20.start_station_id_1 = name.start_station_id
+
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.station_name` AS name
+
+          WHERE NOV20.start_station_name = name.start_station_name;
+
+
+#   d) Remove the old station id columns, also clean the data using steps 3-7 above.
+#           --> save the result as new table tripdata2020_11clean
+          
+          SELECT  ride_id, 
+                          rideable_type , 
+                          member_casual ,              
+                          FORMAT_DATE('%A', started_at) AS day_of_week, 
+                          started_at, 
+                          ended_at,
+                          DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) AS ride_length,
+                          start_station_name ,
+                          start_station_id ,
+                          end_station_name ,
+                          end_station_id ,
+                          start_lat,
+                          start_lng,
+                          end_lat,
+                          end_lng
+
+                  FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11string`
+
+                  WHERE ride_id IS NOT NULL AND 
+                          rideable_type IS NOT NULL AND 
+                          started_at IS NOT NULL AND 
+                          ended_at IS NOT NULL AND
+                          start_station_name IS NOT NULL AND
+                          start_station_id IS NOT NULL AND
+                          end_station_name IS NOT NULL AND
+                          end_station_id IS NOT NULL AND
+                          start_lat IS NOT NULL AND
+                          start_lng IS NOT NULL AND
+                          end_lat IS NOT NULL AND
+                          end_lng IS NOT NULL AND 
+                          member_casual IS NOT NULL AND 
+                          DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) > 0 AND 
+                          DATETIME_DIFF(DATETIME(TIMESTAMP(ended_at)), DATETIME(TIMESTAMP(started_at)), MINUTE) < 1440 AND 
+                          end_station_name <> "Base - 2132 W Hubbard Warehouse" AND
+                          start_station_name <> "Base - 2132 W Hubbard Warehouse" ;
+
+  
+#9. Now we can combine Nov 2020 data with the others. 
+#   Save the result as new table tripdata2020_11_2021_10_clean
+          
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_12_2021_10_clean`
+          UNION ALL
+          SELECT  *
+          FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2020_11clean` ; 
+          
+                  
+
+#8.	Export and further process in RStudio
 
