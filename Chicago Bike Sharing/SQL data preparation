@@ -26,7 +26,7 @@ Data taken is for period Nov 2020 - Oct 2021.
           UNION ALL
           SELECT  *
           FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_07`
-          UNION ALL
+          UNION ALL 
           SELECT  *
           FROM `bigquery-kaggle-327512.casestudy1_bikesharing.tripdata2021_06`
           UNION ALL
