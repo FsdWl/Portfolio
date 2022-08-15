@@ -1,4 +1,5 @@
-Exploring Movie dataset from Kaggle (https://www.kaggle.com/danielgrijalvas/movies)
+# Readme </br>
+Exploring Movie dataset from [Kaggle](https://www.kaggle.com/danielgrijalvas/movies)
 Finding out if there are correlations between variables and gross revenue. 
 
 Conclussion: 
