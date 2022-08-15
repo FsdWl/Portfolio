@@ -204,6 +204,6 @@ CREATE VIEW `bigquery-kaggle-327512.Covid.PercentPopulationVaccinated` AS(
         FROM `bigquery-kaggle-327512.Covid.CovidDeaths` AS dea
         JOIN `bigquery-kaggle-327512.Covid.CovidVaccines` AS vac
                 ON dea.location = vac.location AND dea.date = vac.date
-        WHERE dea.continent IS NOT NULL
+        WHERE dea.continent IS NOT NULL 
         )
 
